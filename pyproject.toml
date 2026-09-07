@@ -1,0 +1,21 @@
+[project]
+name = "gitgpt"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Eshaan Singh", email = "eshaansingh.devel@gmail.com" }
+]
+requires-python = ">=3.12"
+dependencies = [
+    "anthropic>=1.4.0",
+    "fastapi[standard]>=0.141.1",
+    "ollama>=0.6.2",
+]
+
+[project.scripts]
+gitgpt = "gitgpt:main"
+
+[build-system]
+requires = ["uv_build>=0.12.5,<0.13.0"]
+build-backend = "uv_build"
