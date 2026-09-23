@@ -1,32 +1,40 @@
-
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import ollama
-from nodes import add_node, path_to_root, nodes
+from nodes import add_node, path_to_root, node_exists_in_db
+
+
 app = FastAPI()
 
-messages = []
+
 
 class Turn(BaseModel):
     content: str
+    parent_id: str | None = None
 
 
 def call_model(messages):
     last = messages[-1]["content"]
-    reply = ollama.chat(model="qwen3.5:4b", messages=messages)
+    reply = ollama.chat(model="qwen2.5:1.5b", messages=messages)
     return reply["message"]["content"]
 
 
 @app.post('/chat')
 def chat(turn: Turn):
-    messages.append({"role": "user", "content": turn.content})
+    if turn.parent_id is not None and not node_exists_in_db(turn.parent_id):
+        raise HTTPException(status_code=404, detail="parent_id not found")
+    curr = add_node(role="user", content=turn.content, parent_id = turn.parent_id)
+    messages = path_to_root(curr.id)
+    print(f"parent_id={turn.parent_id}, history length={len(messages)}")
     text = call_model(messages)
-    messages.append({"role": "assistant", "content": text})
-    return {"reply": text}
+    assist = add_node(role="assistant", content=text, parent_id = curr.id)
+    return {"reply": text, "node_id": assist.id}
 
-    
-@app.get("/history")
-def history():
-    return messages
+
+@app.post('/merge')
+def merge(turn1: Turn, turn2: Turn):
+    """need to summarize and give context to both turns, and get the similarities and differences.
+    need to allow the user to choose what they wanted to do """
+
 
 
