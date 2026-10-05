@@ -3,9 +3,6 @@ import ollama
 from pydantic import BaseModel, ConfigDict
 node_collection = {}
 
-
-
-
 class Branch(BaseModel):
     recent_summary: str
     rolling_summary: str

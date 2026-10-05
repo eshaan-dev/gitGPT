@@ -1,5 +1,4 @@
 import requests
-
 parent_id = None 
 
 while True:
@@ -7,8 +6,12 @@ while True:
     if content.lower() == "exit":
         break
 
-    if content.lower()[:8] == "/branch":
-        
+    elif content.lower()[:9] == "/rollback":
+        parent_id = content.lower()[10:]
+        print("Rollback Successful!")
+
+    
+    elif content.lower()[:8] == "/branch":
         response = requests.post(
                     "http://localhost:8000/branch",
                     json={"node_id": parent_id},
@@ -24,4 +27,4 @@ while True:
         data = response.json()
 
         parent_id = data["node_id"]
-        print("Assistant:", data["reply"])
+        print("Assistant:", data["reply"], "id:", parent_id)
