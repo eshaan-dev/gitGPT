@@ -1,13 +1,14 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import ollama
-from nodes import add_node, path_to_root, node_exists_in_db
+from nodes import add_node, path_to_root, node_exists_in_db, convert_branch, Branch
 
 
 app = FastAPI()
 
 
-
+class BranchRequest(BaseModel):
+     node_id: str
 class Turn(BaseModel):
     content: str
     parent_id: str | None = None
@@ -31,10 +32,25 @@ def chat(turn: Turn):
     return {"reply": text, "node_id": assist.id}
 
 
+@app.post('/branch')
+def branch(branchreq: BranchRequest):
+    new_node = convert_branch(branchreq.node_id)
+
+    if not isinstance(new_node, str) and new_node.branch_id:
+        return {"Status": "Branch created", "id": new_node.branch_id}
+        
+    return {"Status": "Unable to create a branch"}
+    
+
+
+
 @app.post('/merge')
 def merge(turn1: Turn, turn2: Turn):
     """need to summarize and give context to both turns, and get the similarities and differences.
     need to allow the user to choose what they wanted to do """
+    return
 
-
-
+@app.post('/visualize')
+def visualize(messages):
+    """build out a graph that shows the messages overall thing."""
+    return
