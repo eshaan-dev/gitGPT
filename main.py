@@ -1,11 +1,13 @@
 from fastapi import FastAPI, HTTPException, Request
 from pydantic import BaseModel
 import ollama
-from nodes import add_node, path_to_root, node_exists_in_db, convert_branch, Branch
+import logging
+from nodes import add_node, path_summary_collection, node_exists_in_db, convert_branch, Branch
 
 
 app = FastAPI()
-
+logging.basicConfig(level=logging.DEBUG)
+logger = logging.getLogger(__name__)
 
 class BranchRequest(BaseModel):
      node_id: str
@@ -25,8 +27,9 @@ def chat(turn: Turn):
     if turn.parent_id is not None and not node_exists_in_db(turn.parent_id):
         raise HTTPException(status_code=404, detail="parent_id not found")
     curr = add_node(role="user", content=turn.content, parent_id = turn.parent_id)
-    messages = path_to_root(curr.id)
-    print(f"parent_id={turn.parent_id}, history length={len(messages)}")
+    messages = path_summary_collection(curr.id)
+    logger.info(f"parent_id={turn.parent_id}, history length={len(messages)}")
+    logger.debug(f"MESSAGES SENT TO MODEL: {messages}")
     text = call_model(messages)
     assist = add_node(role="assistant", content=text, parent_id = curr.id)
     return {"reply": text, "node_id": assist.id}
