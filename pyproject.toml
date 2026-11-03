@@ -10,6 +10,7 @@ requires-python = ">=3.12"
 dependencies = [
     "anthropic>=1.4.0",
     "fastapi[standard]>=0.141.1",
+    "mcp>=2.3.0",
     "ollama>=0.6.2",
 ]
 

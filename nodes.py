@@ -1,13 +1,51 @@
 import uuid
+import sqlite3
 import ollama
 import logging
 from pydantic import BaseModel, ConfigDict
 
 node_collection = {}
 
-
-
 logger = logging.getLogger(__name__)
+
+DB_PATH = "gitgpt.db"
+
+def _init_db():
+    con = sqlite3.connect(DB_PATH)
+    con.execute("""
+        CREATE TABLE IF NOT EXISTS nodes (
+            id TEXT PRIMARY KEY,
+            parent_id TEXT,
+            role TEXT NOT NULL,
+            content TEXT NOT NULL,
+            branch_id TEXT,
+            recent_summary TEXT,
+            rolling_summary TEXT,
+            distance INTEGER NOT NULL DEFAULT 0
+        )
+    """)
+    con.commit()
+    con.close()
+
+def _save_node(node):
+    con = sqlite3.connect(DB_PATH)
+    recent = node.summary.recent_summary if node.summary else None
+    rolling = node.summary.rolling_summary if node.summary else None
+    con.execute(
+        "INSERT OR REPLACE INTO nodes VALUES (?,?,?,?,?,?,?,?)",
+        (node.id, node.parent_id, node.role, node.content, node.branch_id, recent, rolling, node.distance)
+    )
+    con.commit()
+    con.close()
+
+def _load_nodes():
+    con = sqlite3.connect(DB_PATH)
+    for row in con.execute("SELECT id, parent_id, role, content, branch_id, recent_summary, rolling_summary, distance FROM nodes"):
+        nid, parent_id, role, content, branch_id, recent, rolling, distance = row
+        summary = Branch(recent_summary=recent, rolling_summary=rolling) if recent else None
+        node_collection[nid] = Node(id=nid, parent_id=parent_id, role=role, content=content,
+                                    branch_id=branch_id, summary=summary, distance=distance)
+    con.close()
 
 class Branch(BaseModel):
     recent_summary: str
@@ -29,6 +67,9 @@ class Node(BaseModel):
 
 
 
+_init_db()
+_load_nodes()
+
 def model_summary(message):
     reply = ollama.chat(model="qwen2.5:1.5b", messages=message)
     return reply["message"]["content"]
@@ -42,6 +83,7 @@ def add_node(parent_id, role, content):
             summary_node = Node(id=summary_id, parent_id=parent_id, role="system", content=summarize(parent_id)[1])
             distance = 0
             node_collection[summary_id] = summary_node
+            _save_node(summary_node)
             parent_id = summary_id
             logging.debug(f"SUMMARY NODE CONTENT: {summary_node.content}")
         else:
@@ -49,6 +91,7 @@ def add_node(parent_id, role, content):
     new_node = Node(id=node_id, parent_id=parent_id, role=role, content=content, distance = distance)
     logging.info(f"node={new_node.id} role={new_node.role} distance={new_node.distance} parent={new_node.parent_id}")
     node_collection[node_id] = new_node
+    _save_node(new_node)
     return new_node
 
 def node_exists_in_db(node_id: str):
@@ -92,6 +135,7 @@ def convert_branch(node_id: str):
         rolling = recent
 
     node.summary = Branch(recent_summary=recent, rolling_summary=rolling)
+    _save_node(node)
     return node
 
 
